@@ -493,7 +493,9 @@ class FollowViewsTest(TestCase):
         self.assertIn(post, response.context['page_obj'].object_list)
 
     def test_new_post_by_no_subscriber(self):
-        """Новая запись пользователя не появляется в ленте тех, кто не подписан."""
+        """Новая запись пользователя не появляется
+        в ленте тех, кто не подписан.
+        """
         following = User.objects.create(username='auth1')
         post = Post.objects.create(author=following, text='test')
 

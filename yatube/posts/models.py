@@ -59,7 +59,7 @@ class Post(CreatedModel):
 
     def get_absolute_url(self):
         return reverse(
-            'posts:profile', kwargs={'username': self.post.author.username}
+            'posts:profile', kwargs={'username': self.author.username}
         )
 
 

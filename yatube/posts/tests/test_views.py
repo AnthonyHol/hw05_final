@@ -193,11 +193,6 @@ class PostPagesTests(TestCase):
             False,
             'При создании поста передан неверный is_edit.',
         )
-        self.assertIsInstance(
-            response.context.get('form'),
-            PostForm,
-            'Форма не является классом PostForm.',
-        )
 
     def test_edit_post_page_show_correct_context(self):
         """Проверка формирования шаблона страницы

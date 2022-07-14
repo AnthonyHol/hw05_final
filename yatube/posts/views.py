@@ -3,6 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
 from django.urls import reverse
 from django.views.generic import CreateView, TemplateView, UpdateView
 
@@ -86,47 +87,32 @@ class PostEditPageView(UpdateView):
     model = Post
     form_class = PostForm
     template_name: str = 'posts/create_post.html'
+    pk_url_kwarg = 'post_id'
 
-    def get(self, request, *args, **kwargs):
-        post = get_object_or_404(Post, pk=self.kwargs['post_id'])
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_edit'] = True
+        context['post_id'] = self.object.pk
 
-        if post.author != request.user:
+        return context
+
+    def is_author(self, request):
+        if request.user.is_authenticated:
+            self.object = self.get_object()
+            return self.object.author == request.user
+        return False
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.is_author(request):
             return HttpResponseRedirect(
-                reverse('posts:post_detail', kwargs={'post_id': post.id})
+                reverse(
+                    'posts:post_detail', kwargs={'post_id': self.object.id}
+                )
             )
+        return super(PostEditPageView, self).dispatch(request, *args, **kwargs)
 
-        form = self.form_class(
-            request.POST or None,
-            files=request.FILES or None,
-            instance=post,
-        )
-
-        return render(
-            request,
-            self.template_name,
-            {'form': form, 'is_edit': True, 'post_id': post.id},
-        )
-
-    def post(self, request, *args, **kwargs):
-        post = get_object_or_404(Post, pk=self.kwargs['post_id'])
-
-        form = self.form_class(
-            request.POST or None,
-            files=request.FILES or None,
-            instance=post,
-        )
-
-        if form.is_valid():
-            form.save()
-            return HttpResponseRedirect(
-                reverse('posts:post_detail', kwargs={'post_id': post.id})
-            )
-
-        return render(
-            request,
-            self.template_name,
-            {'form': form, 'is_edit': True, 'post_id': post.id},
-        )
+    def get_success_url(self) -> str:
+        return reverse('posts:post_detail', kwargs={'post_id': self.object.id})
 
 
 class FollowPageView(TemplateView):
@@ -151,9 +137,6 @@ class PostCreatePageView(LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['form'] = PostForm(
-            self.request.POST or None, files=self.request.FILES or None
-        )
         context['is_edit'] = False
 
         return context
@@ -163,9 +146,7 @@ class PostCreatePageView(LoginRequiredMixin, CreateView):
         self.post.author = self.request.user
         self.post_instance = form.instance
         self.post.save()
-        self.success_url = reverse(
-            'posts:profile', kwargs={'username': self.post.author.username}
-        )
+
         return super().form_valid(form)
 
 

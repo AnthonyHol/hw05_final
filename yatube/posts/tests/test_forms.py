@@ -44,62 +44,6 @@ class PostsFormTests(TestCase):
         self.authorized_client = Client()
         self.authorized_client.force_login(PostsFormTests.user)
 
-    # def test_create_post_without_group(self):
-    #     """Тест формы создания поста без группы."""
-    #     post_count = Post.objects.count()
-
-    #     form_data = {
-    #         'text': 'Это тест создания нового поста :)',
-    #     }
-
-    #     response = self.authorized_client.post(
-    #         reverse('posts:post_create'),
-    #         data=form_data,
-    #         follow=True,
-    #         image=self.uploaded,
-    #     )
-
-    #     self.assertEqual(
-    #         Post.objects.count(),
-    #         post_count + 1,
-    #         'После отправки формы количество постов не изменилось.',
-    #     )
-    #     self.assertEqual(
-    #         Post.objects.last().text,
-    #         form_data['text'],
-    #         'Последний добавленный пост отличается от созданного.',
-    #     )
-    #     self.assertEqual(
-    #         response.status_code, HTTPStatus.OK, 'Запрос не вернул код 200.'
-    #     )
-
-    # def test_create_post_with_group(self):
-    #     """Тест формы создания поста с группой."""
-    #     post_count = Post.objects.count()
-
-    #     form_data = {
-    #         'text': 'Это тест создания нового поста - 2 :)',
-    #         'group': PostsFormTests.group.pk,
-    #         'image': self.uploaded,
-    #     }
-
-    #     response = self.authorized_client.post(
-    #         reverse('posts:post_create'),
-    #         data=form_data,
-    #         follow=True,
-    #     )
-    #     # print('-------------------------------------')
-    #     # print(response.context)
-    #     # print('-------------------------------------')
-    #     self.assertEqual(
-    #         Post.objects.count(),
-    #         post_count + 1,
-    #         'После отправки формы количество постов не изменилось.',
-    #     )
-    #     self.assertEqual(
-    #         response.status_code, HTTPStatus.OK, 'Запрос не вернул код 200.'
-    #     )
-
     def test_edit_post(self):
         """Тест формы изменения поста."""
         post = Post.objects.create(
@@ -196,21 +140,6 @@ class PostCreateViewTest(TestCase):
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(PostCreateViewTest.user)
-
-    # def test_post_create_stores_user(self):
-    #     user1 = User.objects.create_user(
-    #         username='user', email='user1@gmail.com', password='1234'
-    #     )
-    #     post_data = {
-    #         'text': 'Это тест создания нового поста - 2 :)',
-    #         'group': PostCreateViewTest.group.pk,
-    #         'image': self.uploaded,
-    #     }
-
-    #     self.client.force_login(user1)
-    #     self.client.post(reverse('posts:post_create'), post_data)
-
-    #     self.assertTrue(Post.objects.filter(author=user1).exists())
 
     def test_create_post_with_group(self):
         """Тест формы создания поста с группой."""

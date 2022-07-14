@@ -1,6 +1,7 @@
 from core.models import CreatedModel
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.urls import reverse
 
 from .validators import validate_not_empty
 
@@ -56,13 +57,10 @@ class Post(CreatedModel):
     def __str__(self):
         return self.text[:15]
 
-    # def get_absolute_url(self):
-    #     return reverse(
-    #         'posts:post_detail',
-    #         kwargs={
-    #             'post_id': self.pk,
-    #         },
-    #     )
+    def get_absolute_url(self):
+        return reverse(
+            'posts:profile', kwargs={'username': self.post.author.username}
+        )
 
 
 class Comment(CreatedModel):
@@ -72,7 +70,7 @@ class Comment(CreatedModel):
         blank=True,
         null=True,
         related_name='comments',
-        verbose_name='Комментарии',
+        verbose_name='Пост',
         help_text='Комментарии к посту',
     )
     author = models.ForeignKey(
@@ -91,6 +89,11 @@ class Comment(CreatedModel):
         ordering = ('-pub_date',)
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['post', 'author'], name='Уникальность подписки'
+            )
+        ]
 
 
 class Follow(models.Model):

@@ -189,7 +189,9 @@ class PostPagesTests(TestCase):
                 self.assertIsInstance(form_field, expected)
 
         self.assertEqual(
-            response.context.get('is_edit'), False, 'Передан неверный is_edit.'
+            response.context.get('is_edit'),
+            False,
+            'При создании поста передан неверный is_edit.',
         )
         self.assertIsInstance(
             response.context.get('form'),
@@ -218,7 +220,9 @@ class PostPagesTests(TestCase):
                 self.assertIsInstance(form_field, expected)
 
         self.assertEqual(
-            response.context.get('is_edit'), True, 'Передан неверный is_edit.'
+            response.context.get('is_edit'),
+            True,
+            'При редактировании поста передан неверный is_edit.',
         )
         self.assertIsInstance(
             response.context.get('form'),
@@ -409,12 +413,12 @@ class CacheTest(TestCase):
             group=self.group,
         )
         pre_cache_response = self.client.get('posts:index')
-        pre_cache_page = pre_cache_response.content.decode('utf-8')
+        pre_cache_page = pre_cache_response.content
         Post.objects.all().delete()
         post_cache_response = self.client.get('posts:index')
-        post_cache_page = post_cache_response.content.decode('utf-8')
+        post_cache_page = post_cache_response.content
 
-        self.assertHTMLEqual(
+        self.assertEqual(
             pre_cache_page,
             post_cache_page,
             'Кэнирование страницы index работает неправильно.',
@@ -449,9 +453,8 @@ class FollowViewsTest(TestCase):
             follow=True,
         )
 
-        self.assertIs(
-            Follow.objects.filter(user=self.user, author=following).exists(),
-            True,
+        self.assertTrue(
+            Follow.objects.filter(user=self.user, author=following).exists()
         )
 
     def test_unfollow_by_authorized_client(self):
@@ -473,9 +476,8 @@ class FollowViewsTest(TestCase):
             follow=True,
         )
 
-        self.assertIs(
-            Follow.objects.filter(user=self.user, author=following).exists(),
-            False,
+        self.assertFalse(
+            Follow.objects.filter(user=self.user, author=following).exists()
         )
 
     def test_new_post_by_subscriber(self):

@@ -1,52 +1,50 @@
 {% extends "base.html" %}
 {% block title %}
-  Профайл пользователя {{ username }}
+  Профайл пользователя {{ profile }}
 {% endblock %}
 
 
 {% block content %}
 <div class="container py-5">
-  <h1>Все посты пользователя {{ username }}</h1>
+  <h1>Все посты пользователя {{ profile }}</h1>
   <h3>Всего постов: {{ page_obj.paginator.count }} </h3>
   
   <div class="h6 text-muted">
-            Подписчиков: {{ user.follower.count }} <br />
-            Подписан: {{ user.following.count }}
-        </div>
-  <div class="mb-5">
+    Подписчиков: {{ user.follower.count }} <br />
+    Подписан: {{ user.following.count }}
+  </div>
   
-  {% if following %}
-    <a
-      class="btn btn-lg btn-light"
-      href="{% url 'posts:profile_unfollow' username %}" role="button"
-    >
-      Отписаться
-    </a>
-  {% else %}
-    <a
-      class="btn btn-lg btn-primary"
-      href="{% url 'posts:profile_follow' username %}" role="button"
-    >
-      Подписаться
-    </a>
-  {% endif %}
-
-    
+  <div class="mb-5">
+    {% if request.user.username != profile.username %}
+      {% if following %}
+        <a
+          class="btn btn-lg btn-light"
+          href="{% url 'posts:profile_unfollow' profile.username %}" role="button"
+        >
+          Отписаться
+        </a>
+      {% else %}
+        <a
+          class="btn btn-lg btn-primary"
+          href="{% url 'posts:profile_follow' profile.username %}" role="button"
+        >
+          Подписаться
+        </a>
+      {% endif %}
+    {% endif %}
   </div>
 
   {% for post in page_obj %}
     {% if post.group %}
-      <strong>Группа: {{ post.group.title }}</strong>
+      <a href="{% url 'posts:group_list' post.group.slug %}">
+        {{ post.group.title }}
+      </a>
     {% endif %}
     <br>
 
     <a href="{% url 'posts:post_detail' post.pk %}">
       Дата публикации: {{ post.pub_date|date:"d E Y" }}</a>
     <p>{{ post.text|safe|linebreaks }}</p>
-
-    {% if post.group %}
-      <a href="{% url 'posts:group_list' post.group.slug %}">все записи группы</a>
-    {% endif %}
     
     {% if not forloop.last %}
       <hr>

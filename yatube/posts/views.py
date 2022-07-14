@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import CreateView, TemplateView, UpdateView
@@ -10,8 +10,6 @@ from yatube.settings import POSTS_PER_PAGE
 
 from .forms import CommentForm, PostForm
 from .models import Follow, Group, Post, User
-
-CACHE_TIME = 20
 
 
 def _get_page_obj(request, posts):
@@ -29,7 +27,9 @@ class HomePageView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_obj'] = _get_page_obj(self.request, Post.objects.all())
+        context['page_obj'] = _get_page_obj(
+            self.request, Post.objects.select_related('group', 'author').all()
+        )
 
         return context
 
@@ -56,7 +56,7 @@ class ProfilePageView(TemplateView):
         context = super().get_context_data(**kwargs)
         user = get_object_or_404(User, username=self.kwargs['username'])
 
-        context['username'] = user
+        context['profile'] = user
         context['page_obj'] = _get_page_obj(self.request, user.posts.all())
         context['following'] = (
             self.request.user.is_authenticated and user.following.exists()
@@ -75,7 +75,6 @@ class PostDetailPageView(TemplateView):
 
         context['post'] = post
         context['form'] = CommentForm(self.request.POST or None)
-        context['comments'] = post.comments.all()
         context['following'] = (
             self.request.user.is_authenticated
             and post.author.following.filter(user=self.request.user).exists()
@@ -135,8 +134,9 @@ class FollowPageView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user = self.request.user
-        authors: list = user.follower.values_list('author', flat=True)
+        authors: list = self.request.user.follower.values_list(
+            'author', flat=True
+        )
         posts = Post.objects.filter(author__id__in=authors)
 
         context['page_obj'] = _get_page_obj(self.request, posts)
@@ -146,39 +146,36 @@ class FollowPageView(TemplateView):
 
 class PostCreatePageView(LoginRequiredMixin, CreateView):
     model = Post
+    fields = ['group', 'text', 'image']
+    template_name: str = 'posts/create_post.html'
 
-    fields = ["group", "text", "image"]
-    template_name = 'posts/create_post.html'
-
-    def get(self, request, *args, **kwargs):
-        form = PostForm(request.POST or None, files=request.FILES or None)
-        return render(
-            request,
-            self.template_name,
-            {'form': form, 'is_edit': False},
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = PostForm(
+            self.request.POST or None, files=self.request.FILES or None
         )
+        context['is_edit'] = False
 
-    def form_valid(self, form):
+        return context
+
+    def form_valid(self, form) -> HttpResponse:
         self.post = form.save(commit=False)
         self.post.author = self.request.user
         self.post_instance = form.instance
         self.post.save()
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse(
+        self.success_url = reverse(
             'posts:profile', kwargs={'username': self.post.author.username}
         )
+        return super().form_valid(form)
 
 
 # не получилось реализовать в CBV
 @login_required
 def profile_follow(request, username):
     author = User.objects.get(username=username)
-    user = request.user
 
-    if author != user:
-        Follow.objects.get_or_create(user=user, author=author)
+    if author != request.user:
+        Follow.objects.get_or_create(user=request.user, author=author)
         return redirect('posts:profile', username=username)
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
@@ -186,8 +183,7 @@ def profile_follow(request, username):
 
 @login_required
 def profile_unfollow(request, username):
-    user = request.user
-    Follow.objects.get(user=user, author__username=username).delete()
+    Follow.objects.get(user=request.user, author__username=username).delete()
 
     return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
@@ -202,4 +198,5 @@ def add_comment(request, post_id):
         comment.author = request.user
         comment.post = post
         comment.save()
+
     return redirect('posts:post_detail', post_id=post_id)

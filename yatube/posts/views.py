@@ -2,8 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic import CreateView, TemplateView, UpdateView
 
@@ -83,38 +82,6 @@ class PostDetailPageView(TemplateView):
         return context
 
 
-class PostEditPageView(UpdateView):
-    model = Post
-    form_class = PostForm
-    template_name: str = 'posts/create_post.html'
-    pk_url_kwarg = 'post_id'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['is_edit'] = True
-        context['post_id'] = self.object.pk
-
-        return context
-
-    def is_author(self, request):
-        if request.user.is_authenticated:
-            self.object = self.get_object()
-            return self.object.author == request.user
-        return False
-
-    def dispatch(self, request, *args, **kwargs):
-        if not self.is_author(request):
-            return HttpResponseRedirect(
-                reverse(
-                    'posts:post_detail', kwargs={'post_id': self.object.id}
-                )
-            )
-        return super(PostEditPageView, self).dispatch(request, *args, **kwargs)
-
-    def get_success_url(self) -> str:
-        return reverse('posts:post_detail', kwargs={'post_id': self.object.id})
-
-
 class FollowPageView(TemplateView):
     template_name: str = 'posts/follow.html'
 
@@ -150,25 +117,97 @@ class PostCreatePageView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
+class PostEditPageView(UpdateView):
+    model = Post
+    form_class = PostForm
+    template_name: str = 'posts/create_post.html'
+    pk_url_kwarg = 'post_id'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_edit'] = True
+        context['post_id'] = self.object.pk
+
+        return context
+
+    def is_author(self, request):
+        if request.user.is_authenticated:
+            self.object = self.get_object()
+            return self.object.author == request.user
+        return False
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.is_author(request):
+            return HttpResponseRedirect(
+                reverse(
+                    'posts:post_detail', kwargs={'post_id': self.object.id}
+                )
+            )
+        return super(PostEditPageView, self).dispatch(request, *args, **kwargs)
+
+    def get_success_url(self) -> str:
+        return reverse('posts:post_detail', kwargs={'post_id': self.object.id})
+
+
+class ProfileFollowPageView(UpdateView):
+    model = Follow
+
+    def is_author(self, request, username):
+        if request.user.is_authenticated:
+            return request.user.username == username
+        return False
+
+    def dispatch(self, request, *args, **kwargs):
+        self.username = kwargs['username']
+        if not self.is_author(request, self.username):
+            Follow.objects.get_or_create(
+                user=request.user,
+                author=User.objects.get(username=self.username),
+            )
+            return HttpResponseRedirect(
+                reverse('posts:profile', kwargs={'username': self.username})
+            )
+
+    def get_success_url(self) -> str:
+        return HttpResponseRedirect(self.request.META.get('HTTP_REFERER'))
+
+
+class ProfileUnfollowPageView(UpdateView):
+    model = Follow
+
+    def is_author(self, request, username):
+        if request.user.is_authenticated:
+            return request.user.username == username
+        return False
+
+    def dispatch(self, request, *args, **kwargs):
+        self.username = kwargs['username']
+        if not self.is_author(request, self.username):
+            Follow.objects.get(
+                user=request.user, author__username=self.username
+            ).delete()
+            return HttpResponseRedirect(self.request.META.get('HTTP_REFERER'))
+
+
+# @login_required
+# def profile_follow(request, username):
+#     author = User.objects.get(username=username)
+
+#     if author != request.user:
+#         Follow.objects.get_or_create(user=request.user, author=author)
+#         return redirect('posts:profile', username=username)
+
+#     return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+
+
+# @login_required
+# def profile_unfollow(request, username):
+#     Follow.objects.get(user=request.user, author__username=username).delete()
+
+#     return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+
+
 # не получилось реализовать в CBV
-@login_required
-def profile_follow(request, username):
-    author = User.objects.get(username=username)
-
-    if author != request.user:
-        Follow.objects.get_or_create(user=request.user, author=author)
-        return redirect('posts:profile', username=username)
-
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
-
-
-@login_required
-def profile_unfollow(request, username):
-    Follow.objects.get(user=request.user, author__username=username).delete()
-
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
-
-
 @login_required
 def add_comment(request, post_id):
     """Функция отображения добавления комментария к посту"""

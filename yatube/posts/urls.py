@@ -2,9 +2,17 @@ from django.contrib.auth.decorators import login_required
 from django.urls import path
 
 from . import views
-from .views import (FollowPageView, GroupPageView, HomePageView,
-                    PostCreatePageView, PostDetailPageView, PostEditPageView,
-                    ProfilePageView)
+from .views import (
+    FollowPageView,
+    GroupPageView,
+    HomePageView,
+    PostCreatePageView,
+    PostDetailPageView,
+    PostEditPageView,
+    ProfileFollowPageView,
+    ProfilePageView,
+    ProfileUnfollowPageView,
+)
 
 app_name = 'posts'
 
@@ -37,12 +45,22 @@ urlpatterns = [
     ),
     path(
         'profile/<str:username>/follow/',
-        views.profile_follow,
+        login_required(ProfileFollowPageView.as_view()),
         name='profile_follow',
     ),
     path(
         'profile/<str:username>/unfollow/',
-        views.profile_unfollow,
+        login_required(ProfileUnfollowPageView.as_view()),
         name='profile_unfollow',
     ),
+    # path(
+    #     'profile/<str:username>/follow/',
+    #     views.profile_follow,
+    #     name='profile_follow',
+    # ),
+    # path(
+    #     'profile/<str:username>/unfollow/',
+    #     views.profile_unfollow,
+    #     name='profile_unfollow',
+    # ),
 ]

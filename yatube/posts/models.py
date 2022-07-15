@@ -89,11 +89,6 @@ class Comment(CreatedModel):
         ordering = ('-pub_date',)
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
-        constraints = [
-            models.UniqueConstraint(
-                fields=['post', 'author'], name='Уникальность подписки'
-            )
-        ]
 
 
 class Follow(models.Model):
@@ -109,3 +104,15 @@ class Follow(models.Model):
         related_name='follower',
         verbose_name='Подписчик',
     )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                name='Проверка самоподписки',
+                check=models.Q(models.F('user') != models.F('author')),
+            ),
+            models.UniqueConstraint(
+                name='Проверка единственности подписки',
+                fields=['user', 'author'],
+            ),
+        ]

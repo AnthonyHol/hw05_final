@@ -6,9 +6,9 @@ from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
+
 from posts.forms import PostForm
 from posts.models import Follow, Group, Post
-
 from yatube.settings import POSTS_PER_PAGE
 
 User = get_user_model()
@@ -51,8 +51,6 @@ class PostPagesTests(TestCase):
             group=cls.group,
             image=cls.uploaded,
         )
-
-        cls.posts_count = Post.objects.count()
 
     def setUp(self) -> None:
         self.authorized_user_client = Client()
@@ -307,15 +305,13 @@ class PostPagesTests(TestCase):
                 kwargs={'post_id': self.post.pk},
             )
         )
-
+        redirect_url = (
+            f'{reverse("users:login")}?next='
+            f'{reverse("posts:add_comment", kwargs={"post_id": self.post.pk})}'
+        )
         self.assertRedirects(
             response,
-            reverse('users:login')
-            + '?next='
-            + reverse(
-                'posts:add_comment',
-                kwargs={'post_id': self.post.pk},
-            ),
+            redirect_url,
             status_code=302,
             target_status_code=200,
             fetch_redirect_response=True,
@@ -475,7 +471,7 @@ class FollowViewsTest(TestCase):
             Follow.objects.filter(user=self.user, author=following).exists()
         )
 
-    def test_new_post_by_subscriber(self):
+    def test_new_post_by_follower(self):
         """Новая запись пользователя появляется в ленте тех,
         кто на него подписан.
         """
@@ -489,7 +485,7 @@ class FollowViewsTest(TestCase):
 
         self.assertIn(post, response.context['page_obj'].object_list)
 
-    def test_new_post_by_no_subscriber(self):
+    def test_new_post_by_no_follower(self):
         """Новая запись пользователя не появляется
         в ленте тех, кто не подписан.
         """

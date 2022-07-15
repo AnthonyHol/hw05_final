@@ -2,6 +2,7 @@ from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
+
 from posts.models import Group, Post
 
 User = get_user_model()
@@ -12,6 +13,7 @@ class PostURLTests(TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.author = User.objects.create_user(username='auth')
+        cls.user = User.objects.create_user(username='HasNoName')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test-slug',
@@ -20,8 +22,6 @@ class PostURLTests(TestCase):
         cls.post = Post.objects.create(author=cls.author, text='Тестовая пост')
 
     def setUp(self) -> None:
-        self.user = User.objects.create_user(username='HasNoName')
-
         self.authorized_user_client = Client()
         self.authorized_user_client.force_login(self.user)
 
@@ -50,6 +50,7 @@ class PostURLTests(TestCase):
         templates_url_names = {
             f'/posts/{self.post.id}/edit/': 'posts/create_post.html',
             '/create/': 'posts/create_post.html',
+            '/follow/': 'posts/follow.html',
         }
 
         for address, template in templates_url_names.items():

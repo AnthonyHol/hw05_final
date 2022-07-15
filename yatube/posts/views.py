@@ -22,135 +22,108 @@ def _get_page_obj(request, posts):
     return page_obj
 
 
-class HomePageView(TemplateView):
-    model = Post
-    template_name: str = 'posts/index.html'
+def index(request) -> HttpResponse:
+    """Функция отображения для главной страницы."""
+    posts = Post.objects.all()
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page_obj'] = _get_page_obj(
-            self.request, Post.objects.select_related('group', 'author').all()
-        )
-
-        return context
+    context = {'page_obj': _get_page_obj(request, posts)}
+    return render(request, 'posts/index.html', context)
 
 
-class GroupPageView(TemplateView):
-    model = Group
-    template_name: str = 'posts/group_list.html'
+def group_posts(request, slug: str) -> HttpResponse:
+    """Функция отображения для страницы с постами конкретной группы."""
+    group = get_object_or_404(Group, slug=slug)
+    posts = group.posts.all()
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        group = get_object_or_404(Group, slug=self.kwargs['slug'])
+    context = {
+        'group': group,
+        'page_obj': _get_page_obj(request, posts),
+    }
 
-        context['group'] = group
-        context['page_obj'] = _get_page_obj(self.request, group.posts.all())
-
-        return context
-
-
-class ProfilePageView(TemplateView):
-    model = Post
-    template_name: str = 'posts/profile.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        user = get_object_or_404(User, username=self.kwargs['username'])
-
-        context['profile'] = user
-        context['page_obj'] = _get_page_obj(self.request, user.posts.all())
-        context['following'] = (
-            self.request.user.is_authenticated and user.following.exists()
-        )
-
-        return context
+    return render(request, 'posts/group_list.html', context)
 
 
-class PostDetailPageView(TemplateView):
-    model = Post
-    template_name: str = 'posts/post_detail.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        post = get_object_or_404(Post, pk=self.kwargs['post_id'])
-
-        context['post'] = post
-        context['form'] = CommentForm(self.request.POST or None)
-        context['following'] = (
-            self.request.user.is_authenticated
-            and post.author.following.filter(user=self.request.user).exists()
-        )
-        return context
+def profile(request, username: str) -> HttpResponse:
+    """Функция отображения для страницы с профилем пользователя."""
+    user = get_object_or_404(User, username=username)
+    posts = user.posts.all()
+    following = user.is_authenticated and user.following.exists()
+    context = {
+        'profile': user,
+        'page_obj': _get_page_obj(request, posts),
+        'following': following,
+    }
+    return render(request, 'posts/profile.html', context)
 
 
-class PostEditPageView(UpdateView):
-    model = Post
-    form_class = PostForm
-    template_name: str = 'posts/create_post.html'
-    pk_url_kwarg = 'post_id'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['is_edit'] = True
-        context['post_id'] = self.object.pk
-
-        return context
-
-    def is_author(self, request):
-        if request.user.is_authenticated:
-            self.object = self.get_object()
-            return self.object.author == request.user
-        return False
-
-    def dispatch(self, request, *args, **kwargs):
-        if not self.is_author(request):
-            return HttpResponseRedirect(
-                reverse(
-                    'posts:post_detail', kwargs={'post_id': self.object.id}
-                )
-            )
-        return super(PostEditPageView, self).dispatch(request, *args, **kwargs)
-
-    def get_success_url(self) -> str:
-        return reverse('posts:post_detail', kwargs={'post_id': self.object.id})
+def post_detail(request, post_id: int) -> HttpResponse:
+    """Функция отображения для страницы с информацией о конкретном посте."""
+    post = get_object_or_404(Post, pk=post_id)
+    comments = post.comments.all()
+    form = CommentForm(request.POST or None)
+    following = (
+        request.user.is_authenticated
+        and post.author.following.filter(user=request.user).exists()
+    )
+    return render(
+        request,
+        'posts/post_detail.html',
+        {
+            'post': post,
+            'form': form,
+            'comments': comments,
+            'following': following,
+        },
+    )
 
 
-class FollowPageView(TemplateView):
-    template_name: str = 'posts/follow.html'
+@login_required
+def post_create(request) -> HttpResponse:
+    """Функция отображения для страницы создания постов."""
+    form = PostForm(request.POST or None)
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        authors: list = self.request.user.follower.values_list(
-            'author', flat=True
-        )
-        posts = Post.objects.filter(author__id__in=authors)
+    if form.is_valid():
+        post = form.save(commit=False)
+        post.author = request.user
+        post.save()
+        return redirect(f'/profile/{post.author.username}/')
 
-        context['page_obj'] = _get_page_obj(self.request, posts)
-
-        return context
-
-
-class PostCreatePageView(LoginRequiredMixin, CreateView):
-    model = Post
-    fields = ['group', 'text', 'image']
-    template_name: str = 'posts/create_post.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['is_edit'] = False
-
-        return context
-
-    def form_valid(self, form) -> HttpResponse:
-        self.post = form.save(commit=False)
-        self.post.author = self.request.user
-        self.post_instance = form.instance
-        self.post.save()
-
-        return super().form_valid(form)
+    return render(
+        request,
+        'posts/create_post.html',
+        {'form': form, 'is_edit': False},
+    )
 
 
-# не получилось реализовать в CBV
+@login_required
+def post_edit(request, post_id: int) -> HttpResponse:
+    """Функция отображения для страницы редактирования постов."""
+    post = get_object_or_404(Post, id=post_id)
+
+    if post.author != request.user:
+        return redirect('posts:post_detail', post_id=post.id)
+
+    form = PostForm(
+        request.POST or None, files=request.FILES or None, instance=post
+    )
+
+    if form.is_valid():
+        form.save()
+        return redirect('posts:post_detail', post_id=post.id)
+
+    context = {'form': form, 'is_edit': True, 'post_id': post.id}
+
+    return render(request, 'posts/create_post.html', context)
+
+
+@login_required
+def follow_index(request):
+    authors: list = request.user.follower.values_list('author', flat=True)
+    posts = Post.objects.filter(author__id__in=authors)
+    context = {'page_obj': _get_page_obj(request, posts)}
+    return render(request, 'posts/follow.html', context)
+
+
 @login_required
 def profile_follow(request, username):
     author = User.objects.get(username=username)

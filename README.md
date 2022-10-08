@@ -15,13 +15,16 @@
 
 ### Запуск проекта в dev-режиме
 Клонируем проект:
-```git clone https://github.com/AnthonyHol/hw05_final.git```
+```git clone https://github.com/AnthonyHol/hw05_final.git
+```
 
 Переходим в папку с проектом и устанавливаем виртуальное окружение:
-```python -m venv venv```
+```python -m venv venv
+```
 
 Активируем виртуальное окружение:
-```source venv/Scripts/activate```
+```source venv/Scripts/activate
+```
 
 Устанавливаем зависимости:
 `python -m pip install --upgrade pip`
